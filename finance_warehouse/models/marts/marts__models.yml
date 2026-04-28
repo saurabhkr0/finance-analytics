@@ -1,0 +1,182 @@
+version: 2
+
+models:
+  - name: mart_daily_transaction_summary
+    description: >
+      Daily transaction summary aggregated by business_line and branch_city.
+      Materialized as a table clustered by transaction_date for efficient
+      date-range queries. Provides volume, credit/debit totals, net flow,
+      and average transaction amount.
+    columns:
+      - name: transaction_date
+        description: Calendar date of the transactions.
+        tests:
+          - not_null
+      - name: business_line
+        description: "Business line: Retail, Private Banking, Wealth Mgmt, or Institutional."
+        tests:
+          - not_null
+      - name: branch_city
+        description: City of the branch where transactions were processed.
+        tests:
+          - not_null
+      - name: transaction_count
+        description: Number of transactions for this date/business_line/branch_city.
+        tests:
+          - not_null
+      - name: total_credit_amount
+        description: Sum of inflow transactions (Deposit, Interest, Dividend).
+      - name: total_debit_amount
+        description: Sum of outflow transactions (Withdrawal, Fee, ATM).
+      - name: net_flow
+        description: Net cash flow — credits minus debits.
+      - name: average_transaction_amount
+        description: Mean transaction amount across all types.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - transaction_date
+              - business_line
+              - branch_city
+
+  - name: mart_compliance_dashboard
+    description: >
+      Compliance dashboard mart with one row per alert, enriched with customer
+      attributes, alert aging (days_open), escalation rate by severity, and a
+      30-day rolling alert trend per customer segment. Materialized as a table.
+    columns:
+      - name: surrogate_alert_key
+        description: Unique surrogate key for the alert.
+        tests:
+          - not_null
+          - unique
+      - name: alert_id
+        description: Source system alert identifier.
+      - name: alert_date
+        description: Date the alert was raised.
+        tests:
+          - not_null
+      - name: customer_id
+        description: Customer associated with the alert.
+        tests:
+          - not_null
+      - name: alert_type
+        description: "Category of the compliance alert."
+      - name: alert_status
+        description: "Current workflow status of the alert."
+      - name: alert_severity
+        description: "Severity level: Critical, High, Medium, or Low."
+      - name: client_segment
+        description: Customer wealth segment (NULL for orphaned alerts).
+      - name: risk_rating
+        description: Customer KYC risk rating (NULL for orphaned alerts).
+      - name: customer_account_status
+        description: Customer account lifecycle status (NULL for orphaned alerts).
+      - name: days_open
+        description: >
+          Number of days since the alert was raised. NULL for alerts with
+          a closed status (Closed - SAR Filed, Closed - No Action).
+      - name: is_escalated
+        description: Boolean flag — TRUE if the alert status is Escalated.
+      - name: escalation_rate_by_severity
+        description: >
+          Proportion of alerts that have been escalated within the same
+          severity level (0.0 to 1.0).
+      - name: rolling_30d_alerts_by_segment
+        description: >
+          Count of alerts raised in the trailing 30-day window for the
+          same customer segment, ordered by alert_date.
+
+  - name: mart_customer_risk_profile
+    description: >
+      Customer-level risk profile combining customer attributes, aggregated
+      transaction patterns, and compliance alert summaries. One row per customer.
+      Includes a derived risk category based on alert severity, SAR filings,
+      and KYC risk rating. Materialized as a table clustered by risk_rating
+      and client_segment.
+    columns:
+      - name: surrogate_customer_risk_key
+        description: Surrogate key generated from customer_id.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Natural key — unique customer identifier.
+        tests:
+          - not_null
+          - unique
+      - name: risk_rating
+        description: "KYC risk classification: High, Medium, or Low."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']
+      - name: account_status
+        description: "Current account lifecycle status."
+        tests:
+          - not_null
+      - name: onboarding_date
+        description: Date the customer was onboarded.
+        tests:
+          - not_null
+      - name: total_assets_under_management
+        description: Total AUM in base currency, DECIMAL(18,2).
+        tests:
+          - not_null
+      - name: client_segment
+        description: "Customer wealth segment: Retail, HNWI, UHNWI, or Institutional."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Retail', 'HNWI', 'UHNWI', 'Institutional']
+      - name: total_transactions
+        description: Total number of transactions for this customer.
+        tests:
+          - not_null
+      - name: total_transaction_amount
+        description: Sum of all transaction amounts, DECIMAL(18,2).
+        tests:
+          - not_null
+      - name: avg_transaction_amount
+        description: Average transaction amount, DECIMAL(18,2). NULL if no transactions.
+      - name: first_transaction_date
+        description: Date of the customer's earliest transaction. NULL if no transactions.
+      - name: last_transaction_date
+        description: Date of the customer's most recent transaction. NULL if no transactions.
+      - name: distinct_account_types
+        description: Number of distinct account types used by the customer.
+      - name: distinct_currencies
+        description: Number of distinct currencies in the customer's transactions.
+      - name: negative_amount_count
+        description: Count of transactions with negative amounts.
+      - name: total_credits
+        description: Sum of inflow transactions (Deposit, Interest, Dividend), DECIMAL(18,2).
+      - name: total_debits
+        description: Sum of outflow transactions (Withdrawal, Fee, ATM), DECIMAL(18,2).
+      - name: total_alerts
+        description: Total compliance alerts for this customer.
+        tests:
+          - not_null
+      - name: critical_alert_count
+        description: Number of Critical-severity alerts.
+      - name: high_alert_count
+        description: Number of High-severity alerts.
+      - name: escalated_alert_count
+        description: Number of escalated alerts.
+      - name: sar_filed_count
+        description: Number of alerts that resulted in a SAR filing.
+      - name: distinct_alert_types
+        description: Number of distinct alert categories triggered.
+      - name: first_alert_date
+        description: Date of the customer's earliest alert. NULL if no alerts.
+      - name: last_alert_date
+        description: Date of the customer's most recent alert. NULL if no alerts.
+      - name: derived_risk_category
+        description: >
+          Calculated risk category based on alert history and KYC risk rating.
+          Values: Critical, High, Medium, Low, or Minimal.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Critical', 'High', 'Medium', 'Low', 'Minimal']

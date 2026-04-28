@@ -1,0 +1,169 @@
+version: 2
+
+models:
+  - name: stg_finance__customers
+    description: >
+      Staged customer records from the raw CRM data. One row per customer.
+      Adds a surrogate key and standardizes column names and data types.
+    columns:
+      - name: surrogate_customer_key
+        description: Surrogate key generated from customer_id.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Natural key — unique customer identifier from the source system.
+        tests:
+          - not_null
+          - unique
+      - name: risk_rating
+        description: "The customer's assigned risk rating from KYC review: High, Medium, or Low."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']
+      - name: account_status
+        description: "Current lifecycle status of the customer account."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Active', 'Inactive', 'Dormant', 'Closed']
+      - name: onboarding_date
+        description: Date the customer was onboarded, cast to DATE.
+        tests:
+          - not_null
+      - name: total_assets_under_management
+        description: Total assets under management for the customer in base currency, cast to DECIMAL(18,2).
+        tests:
+          - not_null
+      - name: client_segment
+        description: "Customer wealth segment used for service tiering and reporting."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Retail', 'HNWI', 'UHNWI', 'Institutional']
+
+  - name: stg_finance__transactions
+    description: >
+      Staged financial transactions. One row per unique transaction event.
+      Surrogate key is derived from the composite natural key
+      (transaction_id, transaction_date, customer_id, transaction_type, amount)
+      because transaction_id alone is not unique in the source.
+    columns:
+      - name: surrogate_transaction_key
+        description: Surrogate key generated from composite natural key.
+        tests:
+          - not_null
+          - unique
+      - name: transaction_id
+        description: Source system transaction identifier (not unique on its own).
+        tests:
+          - not_null
+      - name: transaction_date
+        description: Date the transaction was executed, cast to DATE.
+        tests:
+          - not_null
+      - name: customer_id
+        description: Foreign key to the customer who executed the transaction.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_finance__customers')
+              field: customer_id
+      - name: account_type
+        description: "Type of account involved in the transaction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Checking', 'Savings', 'Credit Card', 'Brokerage', 'Loan']
+      - name: transaction_type
+        description: "Category of the financial transaction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Deposit', 'Withdrawal', 'Transfer', 'Wire', 'ACH', 'Check', 'ATM', 'Fee', 'Interest', 'Dividend']
+      - name: transaction_amount
+        description: >
+          Transaction amount in the original currency, cast to DECIMAL(18,2).
+          Note: 20% of source rows have negative amounts. See is_negative_amount flag.
+        tests:
+          - not_null
+      - name: is_negative_amount
+        description: >
+          Boolean flag: true when the source amount is negative.
+          20% of source data has negative amounts across all transaction types,
+          including semantically questionable types like Deposit and Interest.
+          Downstream models should investigate or filter as appropriate.
+        tests:
+          - not_null
+      - name: currency
+        description: "ISO currency code for the transaction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD', 'EUR', 'GBP', 'JPY', 'CHF']
+      - name: branch_city
+        description: City of the branch where the transaction was processed.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['New York', 'San Francisco', 'Chicago', 'London', 'Zurich', 'Hong Kong', 'Singapore', 'Toronto']
+      - name: business_line
+        description: "Business line that owns the transaction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Retail', 'Private Banking', 'Wealth Mgmt', 'Institutional']
+
+  - name: stg_finance__compliance_alerts
+    description: >
+      Staged compliance and AML alerts. One row per unique alert event.
+      Surrogate key is derived from all source columns because alert_id
+      alone is not unique. Note: 40 alerts reference customers that do not
+      exist in the customers table (orphaned foreign keys).
+    columns:
+      - name: surrogate_alert_key
+        description: Surrogate key generated from all source columns.
+        tests:
+          - not_null
+          - unique
+      - name: alert_id
+        description: Source system alert identifier (not unique on its own).
+        tests:
+          - not_null
+      - name: alert_date
+        description: Date the alert was raised, cast to DATE.
+        tests:
+          - not_null
+      - name: customer_id
+        description: >
+          Foreign key to the customer associated with the alert.
+          40 rows have orphaned customer_ids with no matching customer record.
+          See is_orphan_customer flag.
+        tests:
+          - not_null
+      - name: alert_type
+        description: "Category of the compliance alert."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Sanctions Match', 'Structuring', 'Large Cash', 'Velocity', 'Geo Anomaly', 'Unusual Pattern']
+      - name: alert_status
+        description: "Current workflow status of the alert."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Open', 'Under Review', 'Escalated', 'Closed - SAR Filed', 'Closed - No Action']
+      - name: alert_severity
+        description: "Severity level assigned to the alert by the monitoring engine."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Critical', 'High', 'Medium', 'Low']
+      - name: is_orphan_customer
+        description: >
+          Boolean flag: true when the alert's customer_id does not exist
+          in the CUSTOMERS source table. 40 source rows are orphaned.
+          Downstream models should filter or handle these appropriately.
+        tests:
+          - not_null

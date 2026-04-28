@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "snowflake_sql_execute",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/block-destructive-sql.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/cost-guard.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/audit-logger.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/audit-logger.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/log-mcp-call.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .cortex/hooks/pii-scanner.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

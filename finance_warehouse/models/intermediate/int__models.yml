@@ -1,0 +1,59 @@
+version: 2
+
+models:
+  - name: int_transactions__daily_summary
+    description: >
+      Daily aggregation of transactions by business_line and branch_city.
+      Calculates volume, credit/debit totals, net flow, and average amount.
+      Materialized as ephemeral — consumed by mart_daily_transaction_summary.
+    columns:
+      - name: transaction_date
+        description: Calendar date of the transactions.
+      - name: business_line
+        description: Business line that owns the transactions.
+      - name: branch_city
+        description: City of the branch where transactions were processed.
+      - name: transaction_count
+        description: Total number of transactions for the date/business_line/branch_city combination.
+      - name: total_credit_amount
+        description: Sum of inflow transactions (Deposit, Interest, Dividend).
+      - name: total_debit_amount
+        description: Sum of outflow transactions (Withdrawal, Fee, ATM).
+      - name: net_flow
+        description: Net cash flow (credits minus debits) for the period.
+      - name: average_transaction_amount
+        description: Mean transaction amount across all transaction types.
+
+  - name: int_compliance_alerts__enriched
+    description: >
+      Compliance alerts enriched with customer attributes via LEFT JOIN.
+      Adds days_open for non-closed alerts and an is_escalated flag.
+      40 alerts have NULL customer attributes due to orphaned customer_ids.
+      Materialized as ephemeral — consumed by mart_compliance_dashboard.
+    columns:
+      - name: surrogate_alert_key
+        description: Surrogate key carried from the staging alert model.
+      - name: alert_id
+        description: Source system alert identifier.
+      - name: alert_date
+        description: Date the alert was raised.
+      - name: customer_id
+        description: Customer associated with the alert.
+      - name: alert_type
+        description: Category of the compliance alert.
+      - name: alert_status
+        description: Current workflow status of the alert.
+      - name: alert_severity
+        description: Severity level assigned to the alert.
+      - name: client_segment
+        description: Customer wealth segment (NULL for orphaned alerts).
+      - name: risk_rating
+        description: Customer KYC risk rating (NULL for orphaned alerts).
+      - name: customer_account_status
+        description: Customer account lifecycle status (NULL for orphaned alerts).
+      - name: days_open
+        description: >
+          Number of days the alert has been open (current_date - alert_date).
+          NULL for closed alerts.
+      - name: is_escalated
+        description: Boolean flag indicating whether the alert has been escalated.

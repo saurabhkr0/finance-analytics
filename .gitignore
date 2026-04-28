@@ -1,0 +1,15 @@
+# dbt credentials and generated files
+finance_warehouse/profiles.yml
+finance_warehouse/.user.yml
+finance_warehouse/dbt_packages/
+finance_warehouse/target/
+finance_warehouse/logs/
+
+# Cortex Code audit logs (local only)
+.cortex/audit/
+
+# Logs
+logs/
+
+# OS
+.DS_Store
