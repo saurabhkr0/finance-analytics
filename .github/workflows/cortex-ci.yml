@@ -1,0 +1,98 @@
+name: Cortex Code CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate Cortex Code Stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate agent definitions exist
+        run: |
+          echo "Checking agent definitions..."
+          for agent in data-quality-inspector dbt-optimizer rbac-auditor finops-analyst issue-router; do
+            if [ ! -f ".cortex/agents/${agent}.md" ]; then
+              echo "FAIL: Missing agent definition: ${agent}.md"
+              exit 1
+            else
+              echo "OK: ${agent}.md"
+            fi
+          done
+
+      - name: Validate agent YAML frontmatter
+        run: |
+          echo "Checking agent frontmatter..."
+          for file in .cortex/agents/*.md; do
+            if ! grep -q "^name:" "$file"; then
+              echo "FAIL: Missing 'name' field in $file"
+              exit 1
+            fi
+            if ! grep -q "^model:" "$file"; then
+              echo "FAIL: Missing 'model' field in $file"
+              exit 1
+            fi
+            echo "OK: $file"
+          done
+
+      - name: Validate hooks exist
+        run: |
+          echo "Checking hooks..."
+          for hook in block-destructive-sql.sh cost-guard.sh audit-logger.sh pii-scanner.sh log-mcp-call.sh; do
+            if [ ! -f ".cortex/hooks/${hook}" ]; then
+              echo "FAIL: Missing hook: ${hook}"
+              exit 1
+            else
+              echo "OK: ${hook}"
+            fi
+          done
+
+      - name: Validate hooks have no hardcoded secrets
+        run: |
+          echo "Scanning hooks for hardcoded secrets..."
+          if grep -r "ghp_\|xoxb-\|password\s*=" .cortex/hooks/ 2>/dev/null; then
+            echo "FAIL: Hardcoded secret detected in hooks"
+            exit 1
+          fi
+          echo "OK: No secrets found"
+
+      - name: Validate settings.json is valid JSON
+        run: |
+          echo "Validating settings.json..."
+          if ! python3 -m json.tool .cortex/settings.json > /dev/null 2>&1; then
+            echo "FAIL: .cortex/settings.json is not valid JSON"
+            exit 1
+          fi
+          echo "OK: settings.json is valid"
+
+      - name: Validate dbt_project.yml exists
+        run: |
+          if [ ! -f "finance_warehouse/dbt_project.yml" ]; then
+            echo "FAIL: finance_warehouse/dbt_project.yml not found"
+            exit 1
+          fi
+          echo "OK: dbt_project.yml exists"
+
+      - name: Validate AGENTS.md exists
+        run: |
+          if [ ! -f "AGENTS.md" ]; then
+            echo "FAIL: AGENTS.md not found"
+            exit 1
+          fi
+          echo "OK: AGENTS.md exists"
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "================================================"
+          echo "Cortex Code stack validation passed"
+          echo "Agents: $(ls .cortex/agents/*.md | wc -l) definitions"
+          echo "Hooks:  $(ls .cortex/hooks/*.sh | wc -l) scripts"
+          echo "================================================"
