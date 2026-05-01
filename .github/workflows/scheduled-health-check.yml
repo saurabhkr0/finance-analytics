@@ -1,0 +1,115 @@
+name: Scheduled Health Check
+
+on:
+  schedule:
+    # Every Monday at 6:00 AM AEST (Sunday 8:00 PM UTC)
+    - cron: '0 20 * * 0'
+  workflow_dispatch:  # Manual trigger for testing
+
+jobs:
+  health-check:
+    name: Run Platform Health Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Cortex Code CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/Snowflake-Labs/cortex-code-install/main/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Configure Snowflake connection
+        run: |
+          mkdir -p ~/.snowflake
+          cat > ~/.snowflake/connections.toml << TOML
+          [default]
+          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
+          user = "${{ secrets.SNOWFLAKE_USER }}"
+          authenticator = "PROGRAMMATIC_ACCESS_TOKEN"
+          token = "${{ secrets.SNOWFLAKE_PAT }}"
+          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+          role = "${{ secrets.SNOWFLAKE_ROLE }}"
+          TOML
+
+      - name: Configure Cortex Code settings
+        run: |
+          mkdir -p ~/.snowflake/cortex
+          echo '{"autoUpdate": false}' > ~/.snowflake/cortex/settings.json
+
+      - name: Configure MCP servers
+        run: |
+          mkdir -p ~/.snowflake/cortex
+          cat > ~/.snowflake/cortex/mcp.json << MCPJSON
+          {
+            "mcpServers": {
+              "github": {
+                "type": "stdio",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-github"],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_PAT_TOKEN }}"
+                }
+              },
+              "jira": {
+                "type": "stdio",
+                "command": "npx",
+                "args": ["-y", "@aashari/mcp-server-atlassian-jira"],
+                "env": {
+                  "ATLASSIAN_SITE_NAME": "${{ secrets.ATLASSIAN_SITE_NAME }}",
+                  "ATLASSIAN_USER_EMAIL": "${{ secrets.ATLASSIAN_USER_EMAIL }}",
+                  "ATLASSIAN_API_TOKEN": "${{ secrets.ATLASSIAN_API_TOKEN }}"
+                }
+              },
+              "slack": {
+                "type": "stdio",
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-slack"],
+                "env": {
+                  "SLACK_BOT_TOKEN": "${{ secrets.SLACK_BOT_TOKEN }}",
+                  "SLACK_TEAM_ID": "${{ secrets.SLACK_TEAM_ID }}"
+                }
+              }
+            }
+          }
+          MCPJSON
+
+      - name: Install Node.js (for MCP servers)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run health check swarm
+        run: |
+          echo "Starting platform health check swarm..."
+          echo "Launch a swarm of agents:
+          1. data-quality-inspector agent to profile FINANCE_DEMO.RAW
+          2. dbt-optimizer agent to review the dbt project in current directory
+          3. rbac-auditor agent to audit all roles and access
+          4. finops-analyst agent to analyze credit consumption for the last 30 days
+
+          When all four agents complete, launch the issue-router agent to
+          read all reports in reports/ and route findings to GitHub, Jira, and Slack." | cortex --print -c default
+        timeout-minutes: 30
+
+      - name: Upload reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-check-reports-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
+
+      - name: Commit updated reports
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/
+          if git diff --staged --quiet; then
+            echo "No report changes to commit"
+          else
+            git commit -m "chore: update health check reports [skip ci]"
+            git push
+          fi
