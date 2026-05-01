@@ -15,10 +15,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Node.js (for MCP servers)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Install Cortex Code CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/Snowflake-Labs/cortex-code-install/main/install.sh | sh
+          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Cortex Code CLI
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex --version
 
       - name: Configure Snowflake connection
         run: |
@@ -41,7 +51,7 @@ jobs:
       - name: Configure MCP servers
         run: |
           mkdir -p ~/.snowflake/cortex
-          cat > ~/.snowflake/cortex/mcp.json << MCPJSON
+          cat > ~/.snowflake/cortex/mcp.json << 'MCPJSON'
           {
             "mcpServers": {
               "github": {
@@ -74,11 +84,6 @@ jobs:
             }
           }
           MCPJSON
-
-      - name: Install Node.js (for MCP servers)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Run health check swarm
         run: |
