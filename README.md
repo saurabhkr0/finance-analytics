@@ -14,9 +14,9 @@ This repository is the companion project to a 7-part Medium series on **Snowflak
 | 2 | Build Custom Skills | [Read →](https://medium.com/@saurabh.kr/build-custom-skills-in-snowflake-cortex-code-cli-e5e7fe287c9c) |
 | 3 | Build Custom Subagents | [Read →](https://medium.com/@saurabh.kr/build-custom-subagent-in-snowflake-cortex-code-cli-part-3-4d2b1f478e11) |
 | 4 | Build and Run Agent Teams | [Read →](https://medium.com/@saurabh.kr/build-and-run-agent-teams-in-snowflake-cortex-code-cli-part-4-97e836acdc49) |
-| 5 | Add Guardrails with Hooks | [Read →](https://medium.com/@saurabh.kr/add-guardrails-to-your-ai-agents-with-hooks-in-snowflake-cortex-code-cli-part-5-77525986ccf5) |
+| 5 | Build Guardrails with Hooks | [Read →](https://medium.com/@saurabh.kr/add-guardrails-to-your-ai-agents-with-hooks-in-snowflake-cortex-code-cli-part-5-77525986ccf5) |
 | 6 | Build MCP Integrations | [Read →](https://medium.com/@saurabh.kr/build-mcp-integrations-in-snowflake-cortex-code-cli-part-6-9d029a749393) | 
-| 7 | Ship to Production | [Read →](https://medium.com/@saurabh.kr) | 
+| 7 | Ship to Production | [Read →](https://medium.com/@saurabh.kr/ship-your-ai-augmented-data-platform-to-production-with-snowflake-cortex-code-cli-part-7-c368c8c4120d) | 
 
 ---
 
