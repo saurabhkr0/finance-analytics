@@ -6,6 +6,7 @@ This repository is the companion project to a 7-part Medium series on **Snowflak
 
 # the business problem it solves
 In regulated finance, undetected drift is expensive. A duplicate transaction key skews a regulatory filing. An over-privileged role exposes customer PII. An oversized warehouse quietly burns budget and the checks only run when a senior engineer remembers.
+
 What's at stake
 - Misstated regulatory filings
 - Customer PII & access exposure
