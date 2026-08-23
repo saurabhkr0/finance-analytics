@@ -1,8 +1,9 @@
 # finance-analytics
 
-> A production-ready, AI-augmented data platform built on Snowflake — using Cortex Code CLI's full extensibility stack.
+> A Production-Ready, Self-Governing, AI-Augmented Data Platform on Snowflake![Uploading image.png…]()
+ — using Snowflake CoCo CLI's full extensibility stack.
 
-This repository is the companion project to a 7-part Medium series on **Snowflake Cortex Code CLI**. It demonstrates how to build a governed, automated finance analytics platform from scratch — using Skills, Subagents, Agent Teams, Hooks, and MCP integrations.
+This repository is the companion project to a 7-part Medium series on **Snowflake CoCo CLI**. It demonstrates how to build a governed, automated finance analytics platform from scratch — using Skills, Subagents, Agent Teams, Hooks, and MCP integrations.
 
 ---
 
