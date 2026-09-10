@@ -1,7 +1,7 @@
 name: Scheduled Health Check
 
 on:
-  schedule:
+  #schedule:
     # Scheduled runs disabled — trigger manually for demos
     # Every Monday at 6:00 AM AEST (Sunday 8:00 PM UTC)
     # - cron: '0 20 * * 0'
