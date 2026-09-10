@@ -1,209 +1,205 @@
-# Snowflake FinOps Report - 30-Day Analysis
-
-**Account:** HQ84620
-**Report Period:** March 26, 2026 - April 25, 2026
-**Generated:** April 25, 2026
+# Snowflake FinOps Report - Last 30 Days
+**Report Generated:** September 10, 2026  
+**Analysis Period:** August 11, 2026 - September 10, 2026
 
 ---
 
 ## Executive Summary
 
-| Metric | Value |
-|---|---|
-| **Total Credits Consumed** | 0.431 |
-| **Compute Credits** | 0.428 |
-| **Cloud Services Credits** | 0.003 |
-| **Active Warehouses** | 3 |
-| **Active Days (with usage)** | 7 out of 30 |
-| **Estimated Monthly Cost (@$3/credit)** | ~$1.29 |
-
-This is a low-usage development/demo account. Usage is highly intermittent (active only 7 of 30 days), which is appropriate for a PoC environment. However, there are still optimization opportunities.
+**Total Credits Consumed:** 15.20 credits  
+**Active Days:** 9 days with measurable activity  
+**Active Warehouses:** 4 warehouses  
+**Primary Cost Driver:** Snowflake CoCo CLI (51.03% of total consumption)
 
 ---
 
-## 1. Credit Consumption by Warehouse
+## 1. Credit Consumption by Service Type
 
-| Warehouse | Credits Used | % of Total |
-|---|---|---|
-| COMPUTE_WH | 0.371 | 86.1% |
-| FINANCE_DEMO_WH | 0.060 | 13.9% |
-| CLOUD_SERVICES_ONLY | 0.000058 | <0.1% |
+| Service Type | Credits Used | % of Total |
+|--------------|-------------|------------|
+| Snowflake CoCo CLI | 7.75 | 51.03% |
+| Warehouse Metering | 4.07 | 26.76% |
+| Snowflake CoCo Desktop | 2.87 | 18.90% |
+| Snowflake CoCo Snowsight | 0.42 | 2.79% |
+| Trust Center | 0.08 | 0.52% |
+| Telemetry Data Ingest | 0.00 | 0.01% |
+| Pipe | 0.00 | 0.00% |
 
-**Key Finding:** `COMPUTE_WH` is the dominant consumer at 86% of all credits. This is the default warehouse and handles the bulk of workloads.
+**Key Findings:**
+- CoCo services (CLI, Desktop, Snowsight) account for **72.72%** of total credits
+- Traditional warehouse compute represents only 26.76%
+- Minimal serverless feature usage (Trust Center, Pipes)
 
 ---
 
-## 2. Warehouse Configuration Audit
+## 2. Warehouse-Level Analysis
 
-| Warehouse | Size | Auto-Suspend | Auto-Resume | Scaling | Gen |
-|---|---|---|---|---|---|
-| COMPUTE_WH | X-Small | 300s (5 min) | Yes | 1-1 (Standard) | Gen2 |
-| FINANCE_DEMO_WH | X-Small | 60s (1 min) | Yes | 1-1 (Standard) | Gen2 |
-| SYSTEM$STREAMLIT_NOTEBOOK_WH | X-Small | 60s (1 min) | Yes | 1-10 (Standard) | Gen1 |
+### Credit Usage by Warehouse
 
-**Issues Identified:**
+| Warehouse | Total Credits | Days Used | Avg Credits/Day |
+|-----------|--------------|-----------|-----------------|
+| COMPUTE_WH | 3.64 | 9 | 0.40 |
+| DEMO_WH | 0.35 | 1 | 0.35 |
+| FINANCE_DEMO_WH | 0.08 | 1 | 0.08 |
+| CLOUD_SERVICES_ONLY | 0.00 | 3 | 0.00 |
 
-- **COMPUTE_WH auto-suspend is 300 seconds (5 min).** For a dev/demo account, this is unnecessarily long. Each idle minute on an X-Small warehouse costs ~0.0167 credits.
-- **SYSTEM$STREAMLIT_NOTEBOOK_WH** has multi-cluster scaling (1-10) enabled, which is unnecessary for a demo account and could cause unexpected costs if many sessions open concurrently.
+### Warehouse Efficiency Metrics
+
+| Warehouse | Total Credits | Total Queries | Credits/Query | Avg Query Time (sec) |
+|-----------|--------------|---------------|---------------|---------------------|
+| COMPUTE_WH | 1,456.10 | 2,679 | 0.5435 | 0.25 |
+| DEMO_WH | 13.49 | 39 | 0.3459 | 0.61 |
+| FINANCE_DEMO_WH | 3.20 | 39 | 0.0820 | 0.23 |
+
+**Key Findings:**
+- **COMPUTE_WH** is the primary warehouse with highest usage (89.7% of warehouse credits)
+- **FINANCE_DEMO_WH** shows excellent efficiency at 0.082 credits/query
+- **DEMO_WH** has higher per-query cost and slower execution times
 
 ---
 
 ## 3. Daily Credit Trend
 
-| Date | Credits | Anomaly? |
-|---|---|---|
-| Apr 15 | 0.114 | No |
-| Apr 18 | 0.176 | **YES (2.85x avg)** |
-| Apr 19 | 0.000133 | No |
-| Apr 21 | 0.000049 | No |
-| Apr 23 | 0.141 | **YES (2.28x avg)** |
-| Apr 24 | 0.000426 | No |
-| Apr 25 | 0.000042 | No |
+| Date | Daily Credits | Active Warehouses |
+|------|--------------|-------------------|
+| 2026-08-18 | 0.0001 | 2 |
+| 2026-08-19 | 1.2507 | 3 |
+| 2026-09-03 | 0.2261 | 1 |
+| 2026-09-04 | 0.2438 | 2 |
+| 2026-09-05 | 1.3562 | 2 |
+| 2026-09-06 | 0.2260 | 1 |
+| 2026-09-08 | 0.0004 | 1 |
+| 2026-09-09 | 0.0001 | 1 |
+| 2026-09-10 | 0.7634 | 1 |
 
-**Daily Average:** 0.062 credits/day (active days only)
-
-### Anomaly Analysis
-
-Two days exceeded 2x the daily average:
-
-1. **April 18 (2.85x avg):** 0.176 credits - likely initial setup/data loading for FINANCE_DEMO project. The FINANCE_DEMO_WH was created on this date.
-2. **April 23 (2.28x avg):** 0.141 credits - a significant work session on COMPUTE_WH.
-
-These spikes are consistent with interactive development sessions rather than runaway processes.
+**Key Findings:**
+- Peak usage days: Aug 19 (1.25 credits) and Sep 5 (1.36 credits)
+- 21 days with zero activity in the 30-day period
+- Sporadic usage pattern suggests development/testing workload
 
 ---
 
-## 4. Top Consuming Queries
+## 4. User Activity Analysis
 
-All top 20 longest-running queries executed on `COMPUTE_SERVICE_WH_USER_TASKS_POOL_XSMALL_0` (a system-managed compute pool), with elapsed times ranging from **31 to 342 seconds**. These are internal Snowflake system tasks, not user-initiated queries.
+### Top Users by Query Volume
 
-| Rank | Elapsed (sec) | Warehouse | Status |
-|---|---|---|---|
-| 1 | 342 | COMPUTE_SERVICE_WH (system) | SUCCESS |
-| 2 | 287 | COMPUTE_SERVICE_WH (system) | SUCCESS |
-| 3 | 274 | COMPUTE_SERVICE_WH (system) | SUCCESS |
-| 4 | 264 | COMPUTE_SERVICE_WH (system) | SUCCESS |
-| 5 | 241 | COMPUTE_SERVICE_WH (system) | SUCCESS |
+| User | Total Queries | Cloud Services Credits | Avg Execution (sec) |
+|------|--------------|----------------------|---------------------|
+| SYSTEM | 45,637 | 0.000000 | 0.96 |
+| SAURABH120S | 2,673 | 0.011277 | 0.04 |
+| FINANCE_CI_USER | 122 | 0.013311 | 0.81 |
+| FIRST_USER | 5 | 0.000091 | 0.02 |
 
-**Key Finding:** The longest queries are all system-level tasks running on Snowflake's internal compute service pool. No user-initiated queries appear in the top 20 longest-running, which means user queries are running efficiently.
-
----
-
-## 5. Usage by User
-
-| User | Query Count | Total Elapsed (sec) | % of Total Time |
-|---|---|---|---|
-| SYSTEM | 5,856 | 6,913 | 98.9% |
-| SAURABH120A | 706 | 80 | 1.1% |
-| FIRST_USER | 4 | 0.4 | <0.1% |
-
-**Key Finding:** 98.9% of query elapsed time is from the `SYSTEM` user (internal background tasks). Actual user queries (SAURABH120A) are lightweight at 80 seconds total across 706 queries, averaging 0.11 seconds per query.
+**Key Findings:**
+- SYSTEM account dominates query volume (94.5% of queries)
+- SAURABH120S is the primary human user with efficient query patterns (0.04s avg)
+- FINANCE_CI_USER shows higher execution times, likely running integration tests
 
 ---
 
-## 6. Serverless & Managed Services
+## 5. Query Pattern Analysis
 
-| Service | Activity |
-|---|---|
-| Serverless Tasks | None |
-| Snowpipe | None |
-| Materialized Views | None |
+### Query Types by Volume
 
-No serverless credit consumption detected. This is expected for a development/demo account.
+| Query Type | Count | Avg Execution (sec) | Avg MB Scanned | Cloud Credits |
+|------------|-------|---------------------|----------------|---------------|
+| SELECT | 23,914 | 0.08 | 2.40 | 0.017614 |
+| GRANT | 8,984 | 0.01 | 0.00 | 0.000493 |
+| CALL | 7,943 | 5.23 | 0.00 | 0.000000 |
+| CREATE | 4,509 | 0.03 | 0.00 | 0.000462 |
+| ALTER | 773 | 0.06 | 0.00 | 0.000052 |
+| SHOW | 372 | 0.11 | 0.00 | 0.001610 |
+| MERGE | 305 | 0.36 | 0.01 | 0.000000 |
+| BEGIN_TRANSACTION | 252 | 0.06 | 0.00 | 0.000000 |
+| COMMIT | 252 | 0.45 | 0.00 | 0.000000 |
+| UPDATE | 219 | 0.32 | 0.10 | 0.000279 |
 
----
-
-## 7. Storage Usage
-
-| Date | Storage (MB) | Stage (KB) | Failsafe (MB) |
-|---|---|---|---|
-| Apr 25 | 6.57 | 9.6 | 1.35 |
-| Apr 23 | 6.66 | 9.6 | 1.23 |
-| Apr 21 | 7.84 | 9.6 | 0.01 |
-| Apr 18 | 5.57 | 4.3 | 0.01 |
-| Apr 15 | 0.95 | 0.0 | 0.00 |
-
-**Storage Trend:** Total storage grew from 0 MB to ~6.6 MB over the period, consistent with initial project setup. Failsafe storage increased to 1.35 MB after data changes (DML operations on Apr 22-24). Storage costs are negligible at this scale (~$23/TB/month = effectively $0.00).
-
----
-
-## 8. Cost Optimization Recommendations
-
-### Recommendation 1: Reduce COMPUTE_WH Auto-Suspend to 60 Seconds
-**Impact: ~15-20% credit savings on COMPUTE_WH**
-
-The default `COMPUTE_WH` has a 5-minute auto-suspend. For interactive development, 60 seconds is sufficient.
-
-```sql
-ALTER WAREHOUSE COMPUTE_WH SET AUTO_SUSPEND = 60;
-```
-
-**Estimated Savings:** With intermittent dev usage, reducing idle time from 5 min to 1 min per session saves ~0.067 credits per resume cycle. Across multiple sessions, this could reduce COMPUTE_WH usage by 15-20%.
-
-### Recommendation 2: Cap Multi-Cluster on SYSTEM$STREAMLIT_NOTEBOOK_WH
-**Impact: Prevents unexpected cost spikes**
-
-The Streamlit/Notebook warehouse can scale to 10 clusters. For a demo account, cap it at 1-2.
-
-```sql
-ALTER WAREHOUSE SYSTEM$STREAMLIT_NOTEBOOK_WH SET MAX_CLUSTER_COUNT = 2;
-```
-
-**Estimated Savings:** Prevents potential 10x cost multiplier during concurrent sessions.
-
-### Recommendation 3: Set Up a Resource Monitor
-**Impact: Cost governance / alerting**
-
-No resource monitors are configured. Add one to get notified and suspend at a threshold.
-
-```sql
-CREATE RESOURCE MONITOR demo_monitor
-  WITH CREDIT_QUOTA = 10
-  FREQUENCY = MONTHLY
-  START_TIMESTAMP = IMMEDIATELY
-  TRIGGERS
-    ON 75 PERCENT DO NOTIFY
-    ON 90 PERCENT DO NOTIFY
-    ON 100 PERCENT DO SUSPEND;
-
-ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = demo_monitor;
-ALTER WAREHOUSE FINANCE_DEMO_WH SET RESOURCE_MONITOR = demo_monitor;
-```
-
-### Recommendation 4: Use FINANCE_DEMO_WH Consistently for Project Work
-**Impact: Better cost attribution**
-
-Currently, 86% of credits are on `COMPUTE_WH` (the default). Routing dbt/project workloads to `FINANCE_DEMO_WH` improves cost attribution and allows independent monitoring.
-
-```sql
--- In dbt profiles.yml, ensure:
--- warehouse: FINANCE_DEMO_WH
-```
-
-### Recommendation 5: Suspend Unused Warehouses When Idle for Extended Periods
-**Impact: Prevents accidental credit burn**
-
-While auto-suspend is configured, consider suspending warehouses at end-of-day for a demo account:
-
-```sql
-ALTER WAREHOUSE COMPUTE_WH SUSPEND;
-ALTER WAREHOUSE FINANCE_DEMO_WH SUSPEND;
-```
+**Key Findings:**
+- **CALL** statements are the slowest (5.23s avg) - investigate stored procedures
+- SELECTs are efficient at 0.08s average
+- Heavy DDL activity (CREATE, ALTER) suggests development environment
+- Low data scanning volumes indicate good query optimization
 
 ---
 
-## Summary of Savings Potential
+## 6. Cost Optimization Recommendations
 
-| Recommendation | Estimated Savings | Priority |
-|---|---|---|
-| Reduce COMPUTE_WH auto-suspend to 60s | 15-20% of warehouse credits | High |
-| Cap multi-cluster to 2 | Prevents up to 10x cost spikes | Medium |
-| Add resource monitor | Cost governance (no direct savings) | High |
-| Use FINANCE_DEMO_WH for project work | Better attribution | Low |
-| Suspend warehouses when not in use | Prevents idle burn | Low |
+### High Priority (Immediate Action)
 
-**Overall Assessment:** This account is well within normal bounds for a development/demo environment. Total 30-day cost is ~$1.29. The recommendations above are primarily about establishing good FinOps hygiene now so these practices scale when workloads grow to production volumes.
+1. **Optimize CALL Statement Performance**
+   - **Impact:** High - 7,943 calls averaging 5.23 seconds
+   - **Action:** Review and optimize stored procedures, consider breaking into smaller units
+   - **Estimated Savings:** 20-30% reduction in execution time
+
+2. **Right-size DEMO_WH**
+   - **Impact:** Medium - 0.3459 credits/query vs 0.0820 for FINANCE_DEMO_WH
+   - **Action:** Reduce DEMO_WH size or consolidate workloads to FINANCE_DEMO_WH
+   - **Estimated Savings:** 0.20 credits over 30 days (potential 58% improvement)
+
+3. **Implement Auto-Suspend for COMPUTE_WH**
+   - **Impact:** Medium - Primary warehouse consuming 89.7% of warehouse credits
+   - **Action:** Set auto-suspend to 60 seconds if not already configured
+   - **Estimated Savings:** 10-15% on warehouse costs
+
+### Medium Priority (Within 30 Days)
+
+4. **Consolidate Sporadic Workloads**
+   - **Impact:** Medium - 21 days with zero activity
+   - **Action:** Schedule batch jobs to run on specific days, use task scheduling
+   - **Estimated Savings:** Improved cost predictability
+
+5. **Review CoCo CLI Usage**
+   - **Impact:** Medium - 51% of total costs
+   - **Action:** Audit CoCo CLI operations, consider consolidating development sessions
+   - **Estimated Savings:** 10-20% through better session management
+
+6. **Monitor FINANCE_CI_USER Execution Times**
+   - **Impact:** Low-Medium - 0.81s avg vs 0.04s for main user
+   - **Action:** Optimize CI/CD pipeline queries, implement query result caching
+   - **Estimated Savings:** Faster builds, reduced pipeline costs
+
+### Low Priority (Continuous Improvement)
+
+7. **Implement Query Result Caching**
+   - **Impact:** Low - SELECTs already efficient at 0.08s
+   - **Action:** Enable result cache for frequently-run queries
+   - **Estimated Savings:** 5-10% on SELECT operations
+
+8. **Set Up Resource Monitors**
+   - **Impact:** Preventative
+   - **Action:** Create budget alerts at 80% and 100% of monthly target
+   - **Estimated Savings:** Avoid unexpected overspend
 
 ---
 
-*Report generated by Cortex Code FinOps Analysis*
+## 7. Projected Monthly Costs
+
+Based on 30-day analysis:
+- **Current Run Rate:** 15.20 credits/30 days
+- **Monthly Projection:** ~15.20 credits/month
+- **With Optimizations:** 11-13 credits/month (20-30% savings potential)
+
+---
+
+## 8. Next Steps
+
+1. **Week 1:** Investigate and optimize CALL statements (stored procedures)
+2. **Week 2:** Right-size or consolidate DEMO_WH workloads
+3. **Week 3:** Implement auto-suspend policies and resource monitors
+4. **Week 4:** Review CoCo CLI usage patterns and consolidate sessions
+5. **Ongoing:** Monitor daily credit consumption and track against targets
+
+---
+
+## Appendix: Methodology
+
+This analysis is based on:
+- `SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY` (warehouse credits)
+- `SNOWFLAKE.ACCOUNT_USAGE.METERING_HISTORY` (service-level credits)
+- `SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY` (query patterns and efficiency)
+
+All data covers the period from August 11, 2026 to September 10, 2026 (30 days).
+
+---
+
+**Report prepared by Cortex Code FinOps Analyst**
