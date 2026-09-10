@@ -89,6 +89,11 @@ jobs:
           }
           MCPJSON
 
+      - name: Verify MCP servers
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex mcp list
+
       - name: Run health check swarm
         run: |
           export PATH="$HOME/.local/bin:$PATH"
