@@ -1,11 +1,10 @@
 name: Scheduled Health Check
 
 on:
-  #schedule:
-    # Scheduled runs disabled — trigger manually for demos
-    # Every Monday at 6:00 AM AEST (Sunday 8:00 PM UTC)
-    # - cron: '0 20 * * 0'
-  workflow_dispatch:  # Manual trigger for testing
+  # Scheduled runs disabled — trigger manually for demos
+  # schedule:
+  #   - cron: '0 20 * * 0'   # Every Monday 6:00 AM AEST (Sunday 8:00 PM UTC)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -89,24 +88,99 @@ jobs:
           }
           MCPJSON
 
+      - name: Configure MCP permissions
+        run: |
+          mkdir -p ~/.snowflake/cortex
+          cat > ~/.snowflake/cortex/permissions.json << PERMJSON
+          {
+            "$GITHUB_WORKSPACE": {
+              "mcp__github__create_issue": "allow",
+              "mcp__github__list_issues": "allow",
+              "mcp__github__search_issues": "allow",
+              "mcp__github__delete_repo": "deny",
+              "mcp__jira__jira_create_issue": "allow",
+              "mcp__jira__jira_ls_issues": "allow",
+              "mcp__jira__jira_get_issue": "allow",
+              "mcp__slack__slack_post_message": "allow",
+              "mcp__slack__slack_list_channels": "allow"
+            }
+          }
+          PERMJSON
+
       - name: Verify MCP servers
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           cortex mcp list
 
-      - name: Run health check swarm
+      - name: Verify agent definitions
+        run: |
+          echo "Agents found in .cortex/agents/:"
+          ls -1 .cortex/agents/
+
+      - name: Run data quality inspection
+        continue-on-error: true
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          cortex exec \
-            --file .cortex/prompts/health-check-swarm.md \
+          cortex exec "Profile all tables in FINANCE_DEMO.RAW and write your findings to reports/data_quality_report.md" \
+            --agent data-quality-inspector \
             -c default \
             --bypass \
             --model claude-sonnet-4-5 \
-            --effort medium \
-            --max-turns 50 \
+            --max-turns 30 \
+            --no-history
+        timeout-minutes: 10
+
+      - name: Run dbt optimization review
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex exec "Review the dbt project in finance_warehouse/ and write your findings to reports/dbt_optimization_report.md" \
+            --agent dbt-optimizer \
+            -c default \
+            --bypass \
+            --model claude-sonnet-4-5 \
+            --max-turns 30 \
+            --no-history
+        timeout-minutes: 10
+
+      - name: Run RBAC audit
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex exec "Audit all Snowflake roles and access grants, then write your findings to reports/rbac_audit_report.md" \
+            --agent rbac-auditor \
+            -c default \
+            --bypass \
+            --model claude-sonnet-4-5 \
+            --max-turns 30 \
+            --no-history
+        timeout-minutes: 10
+
+      - name: Run FinOps analysis
+        continue-on-error: true
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex exec "Analyze credit consumption for the last 30 days and write your findings to reports/finops_report.md" \
+            --agent finops-analyst \
+            -c default \
+            --bypass \
+            --model claude-sonnet-4-5 \
+            --max-turns 30 \
+            --no-history
+        timeout-minutes: 10
+
+      - name: Route findings to GitHub, Jira, and Slack
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          cortex exec "Read all report files in the reports/ directory and route the findings to GitHub Issues, Jira tickets, and Slack based on severity. Follow the routing rules in your system prompt. Write a routing log to reports/issue_routing_log.md" \
+            --agent issue-router \
+            -c default \
+            --bypass \
+            --model claude-sonnet-4-5 \
+            --max-turns 40 \
             --no-history \
             -o reports/swarm_summary.md
-        timeout-minutes: 30
+        timeout-minutes: 15
 
       - name: Upload reports as artifacts
         if: always()
