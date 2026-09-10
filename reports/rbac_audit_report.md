@@ -1,447 +1,335 @@
 # Snowflake RBAC Audit Report
 
-**Account:** GC44975 (HQ84620)
-**Audit Date:** 2026-04-25
-**Auditor:** Cortex Code Automated RBAC Audit
-**Scope:** All roles, users, grants, and access patterns for the FINANCE_DEMO environment
+**Generated:** September 10, 2026  
+**Account:** FP99918  
+**Auditor:** Cortex Code RBAC Auditor
 
 ---
 
 ## Executive Summary
 
-This account has **significant RBAC deficiencies**. It operates with a single user (`SAURABH120A`) using `ACCOUNTADMIN` as the default role for all daily operations. No custom roles exist. All objects (databases, schemas, warehouses, tables) are owned by `ACCOUNTADMIN`. There are no future grants, no resource monitors, no network policies, and no authentication policies. The environment violates Snowflake's least-privilege best practices across multiple dimensions.
+This audit assessed the Role-Based Access Control (RBAC) configuration for the Snowflake account. The analysis identified **9 active roles**, **2 users**, and **1,302+ privilege grants**. Key findings include proper role hierarchy adherence, minimal direct grants to users (good practice), and several opportunities to improve privilege segregation and reduce overprivilege risks.
 
-**Overall Risk Rating: HIGH**
+### Risk Level: **MEDIUM**
 
-| Severity | Finding Count |
-|----------|--------------|
-| Critical | 3 |
-| High | 4 |
-| Medium | 3 |
-| Low | 2 |
+**Key Concerns:**
+- ACCOUNTADMIN holds ownership of critical production resources
+- DEMO_ROLE has ownership privileges on production-adjacent databases
+- Multiple AI and system roles have extensive privileges that may not be actively monitored
 
 ---
 
-## Account Inventory
+## 1. Role Inventory
 
-### Roles (6 total - all system defaults, zero custom roles)
+### Active Roles (9 total)
 
-| Role | Assigned Users | Granted to Roles | Granted Roles |
-|------|---------------|-----------------|---------------|
-| ACCOUNTADMIN | 1 | 0 | 2 (SECURITYADMIN, SYSADMIN) |
-| ORGADMIN | 1 | 0 | 0 |
-| SECURITYADMIN | 0 | 1 (ACCOUNTADMIN) | 1 (USERADMIN) |
-| SYSADMIN | 0 | 1 (ACCOUNTADMIN) | 0 |
-| USERADMIN | 0 | 1 (SECURITYADMIN) | 0 |
-| PUBLIC | 0 | 0 | 0 |
+| Role Name | Assigned to Users | Granted to Roles | Granted Roles | Created On |
+|-----------|-------------------|------------------|---------------|------------|
+| ACCOUNTADMIN | 1 | 0 | 2 | 2026-08-18 |
+| DEMO_ROLE | 1 | 1 | 0 | 2026-08-19 |
+| FINANCE_CI_ROLE | 1 | 1 | 0 | 2026-09-10 |
+| ORGADMIN | 1 | 0 | 0 | 2026-08-18 |
+| PUBLIC | 0 | 0 | 1 | 2026-08-18 |
+| SECURITYADMIN | 0 | 1 | 1 | 2026-08-18 |
+| SNOWFLAKE_LEARNING_ROLE | 0 | 1 | 0 | 2026-08-18 |
+| SYSADMIN | 0 | 1 | 2 | 2026-08-18 |
+| USERADMIN | 0 | 1 | 0 | 2026-08-18 |
 
-### Users (1 total)
-
-| User | Default Role | Default Warehouse | MFA Enabled | Disabled | Last Login |
-|------|-------------|-------------------|-------------|----------|------------|
-| SAURABH120A | ACCOUNTADMIN | COMPUTE_WH | Yes | No | 2026-04-25 |
-
-### Databases (4 total)
-
-| Database | Owner | Type |
-|----------|-------|------|
-| FINANCE_DEMO | ACCOUNTADMIN | STANDARD |
-| SNOWFLAKE | (system) | APPLICATION |
-| SNOWFLAKE_SAMPLE_DATA | ACCOUNTADMIN | IMPORTED |
-| USER$SAURABH120A | (system) | PERSONAL |
-
-### Warehouses (3 total)
-
-| Warehouse | Owner | Size | Auto-Suspend | State |
-|-----------|-------|------|-------------|-------|
-| COMPUTE_WH | ACCOUNTADMIN | X-Small | 300s | STARTED |
-| FINANCE_DEMO_WH | ACCOUNTADMIN | X-Small | 60s | SUSPENDED |
-| SYSTEM$STREAMLIT_NOTEBOOK_WH | ACCOUNTADMIN | X-Small | 60s | SUSPENDED |
-
-### FINANCE_DEMO Schemas
-
-| Schema | Owner |
-|--------|-------|
-| RAW | ACCOUNTADMIN |
-| ANALYTICS | ACCOUNTADMIN |
-| ML | ACCOUNTADMIN |
-| PUBLIC | ACCOUNTADMIN |
+### System Roles (239 additional Cortex/AI roles not shown)
+The account contains 239 system-managed roles (CORTEX-MODEL-ROLE-*, APP_*, AI_OBSERVABILITY_*, etc.) which are standard for Snowflake AI and system operations.
 
 ---
 
-## Findings
+## 2. User Role Assignments
 
-### CRITICAL Severity
+### User: SAURABH120S
+- **ACCOUNTADMIN** (created 2026-08-18)
+- **DEMO_ROLE** (created 2026-08-19)
+- **ORGADMIN** (created 2026-08-18)
 
-#### C1: ACCOUNTADMIN Used as Default Role for Daily Operations
+**Risk:** User has ACCOUNTADMIN access. Ensure this is justified and follows least privilege principles.
 
-**Description:** User `SAURABH120A` has `ACCOUNTADMIN` set as their default role and uses it for all 657 queries executed in the last 30 days. This includes routine SELECT (324), SHOW (260), and DESCRIBE (32) operations that should never require superadmin privileges.
+### User: FINANCE_CI_USER
+- **FINANCE_CI_ROLE** (created 2026-09-10)
 
-**Risk:** Any accidental or malicious operation runs with full account control. A compromised session could drop databases, exfiltrate all data, create backdoor users, or modify billing. This is the single most impactful finding in this audit.
+**Status:** Appropriately scoped for CI/CD operations with read-only intent.
 
-**Evidence:**
-- Default role: `ACCOUNTADMIN`
-- 657 queries in 30 days using ACCOUNTADMIN
-- Query breakdown: SELECT (324), SHOW (260), DESCRIBE (32), CREATE (11), PUT_FILES (10), LIST_FILES (8)
+---
 
-**Remediation:**
+## 3. Role Hierarchy
+
+```
+ACCOUNTADMIN (root)
+├── SECURITYADMIN
+│   └── USERADMIN
+├── SYSADMIN
+│   ├── DEMO_ROLE
+│   └── FINANCE_CI_ROLE
+├── DEMO_ROLE
+├── FINANCE_CI_ROLE
+└── SNOWFLAKE_LEARNING_ROLE
+    └── PUBLIC
+```
+
+**Analysis:**
+- ✅ Follows Snowflake recommended role hierarchy
+- ✅ SECURITYADMIN and SYSADMIN properly grant to ACCOUNTADMIN
+- ⚠️ DEMO_ROLE and FINANCE_CI_ROLE both granted to ACCOUNTADMIN and SYSADMIN (double inheritance)
+
+---
+
+## 4. Privilege Analysis
+
+### Account-Level Privileges by Role
+
+#### SECURITYADMIN (16 distinct account privileges)
+```
+APPLY AUTHENTICATION POLICY, APPLY FEATURE POLICY, APPLY MAINTENANCE POLICY, 
+APPLY MULTI PARTY APPROVAL POLICY, APPLY PACKAGES POLICY, APPLY PASSWORD POLICY, 
+APPLY SESSION POLICY, ATTACH POLICY, BIND SERVICE ENDPOINT, CREATE NETWORK POLICY, 
+MANAGE APPLICATION SPECIFICATIONS, MANAGE CALLER GRANTS, MANAGE GRANTS, 
+MANAGE ORGANIZATION ACCESS, MANAGE SERVICE CALLER ACCESS, MANAGE VISIBILITY
+```
+**Status:** ✅ Appropriate security-focused privileges
+
+#### SYSADMIN (3 account privileges)
+```
+CREATE COMPUTE POOL, CREATE DATABASE, CREATE WAREHOUSE
+```
+**Status:** ✅ Appropriate infrastructure management privileges
+
+#### USERADMIN (2 account privileges)
+```
+CREATE ROLE, CREATE USER
+```
+**Status:** ✅ Appropriate user management privileges
+
+#### ACCOUNTADMIN (92 account privileges)
+**Status:** ⚠️ Expected for ACCOUNTADMIN but requires careful monitoring
+
+---
+
+## 5. Object Ownership Analysis
+
+### Database Ownership
+
+| Database | Owner Role | Risk Level |
+|----------|------------|------------|
+| FINANCE_DEMO | ACCOUNTADMIN | HIGH ⚠️ |
+| SNOWFLAKE_LEARNING_DB | ACCOUNTADMIN | MEDIUM |
+| SNOWFLAKE_SAMPLE_DATA | ACCOUNTADMIN | LOW |
+| DEMO_DB | DEMO_ROLE | MEDIUM ⚠️ |
+
+**Concern:** Production databases (FINANCE_DEMO) should be owned by SYSADMIN or a dedicated data admin role, not ACCOUNTADMIN.
+
+### Warehouse Ownership
+
+| Warehouse | Owner Role | Risk Level |
+|-----------|------------|------------|
+| FINANCE_DEMO_WH | ACCOUNTADMIN | HIGH ⚠️ |
+| COMPUTE_WH | ACCOUNTADMIN | MEDIUM |
+| DEMO_WH | DEMO_ROLE | LOW |
+| SNOWFLAKE_LEARNING_WH | ACCOUNTADMIN | LOW |
+| SYSTEM$STREAMLIT_NOTEBOOK_WH | ACCOUNTADMIN | LOW |
+
+**Concern:** Production warehouses should be owned by SYSADMIN for better separation of duties.
+
+---
+
+## 6. Privilege Sprawl Assessment
+
+### Top Roles by Privilege Count
+
+| Role | Object Types | Total Grants |
+|------|--------------|--------------|
+| ACCOUNTADMIN | 8 types | 258 grants |
+| TRUST_CENTER_ADMIN | 5 types | 172 grants |
+| TRUST_CENTER_VIEWER | 5 types | 70 grants |
+| DATA_SECURITY_ADMIN | 6 types | 83 grants |
+| DATA_SECURITY_VIEWER | 5 types | 65 grants |
+| POSTGRES_MIRROR_ADMIN | 3 types | 94 grants |
+
+**Analysis:**
+- ACCOUNTADMIN: Expected high privilege count (149 database_role grants + 92 account privileges)
+- System roles (TRUST_CENTER_*, DATA_SECURITY_*): Standard for monitoring and governance
+- ⚠️ Review if all system roles are actively used
+
+---
+
+## 7. Governance Gaps
+
+### 🔴 CRITICAL
+
+1. **Production Database Ownership**
+   - `FINANCE_DEMO` owned by ACCOUNTADMIN instead of SYSADMIN
+   - **Impact:** Violates separation of duties principle
+   - **Remediation:** Transfer ownership to SYSADMIN
+
+2. **Production Warehouse Ownership**
+   - `FINANCE_DEMO_WH` owned by ACCOUNTADMIN
+   - **Impact:** Operational tasks require ACCOUNTADMIN elevation
+   - **Remediation:** Transfer ownership to SYSADMIN
+
+### 🟡 MEDIUM
+
+3. **DEMO_ROLE Privilege Scope**
+   - Owns DEMO_DB and DEMO_WH
+   - Granted to user SAURABH120S who also has ACCOUNTADMIN
+   - **Impact:** Unclear separation between demo and production resources
+   - **Remediation:** Clarify purpose and scope of DEMO_ROLE
+
+4. **FINANCE_CI_ROLE Access**
+   - Has read access to production finance data
+   - **Impact:** CI/CD processes have production data access
+   - **Recommendation:** Verify read-only restrictions and audit CI logs
+
+### 🟢 LOW
+
+5. **Inactive System Roles**
+   - 239 Cortex/AI model roles exist but may not all be in use
+   - **Impact:** Increased attack surface if unused
+   - **Recommendation:** Audit which AI models are actively used
+
+---
+
+## 8. Best Practices Assessment
+
+| Practice | Status | Notes |
+|----------|--------|-------|
+| No direct grants to users | ✅ PASS | All access via roles |
+| Proper role hierarchy | ✅ PASS | Follows Snowflake model |
+| Separation of duties | ⚠️ PARTIAL | ACCOUNTADMIN owns production resources |
+| Least privilege principle | ⚠️ PARTIAL | User has ACCOUNTADMIN access |
+| Role documentation | ❌ FAIL | No role descriptions/comments |
+| Regular access reviews | ⚠️ UNKNOWN | Cannot verify from metadata |
+
+---
+
+## 9. Recommendations
+
+### Immediate Actions (High Priority)
+
+1. **Transfer Production Ownership**
+   ```sql
+   -- Transfer database ownership
+   GRANT OWNERSHIP ON DATABASE FINANCE_DEMO TO ROLE SYSADMIN;
+   
+   -- Transfer warehouse ownership
+   GRANT OWNERSHIP ON WAREHOUSE FINANCE_DEMO_WH TO ROLE SYSADMIN;
+   ```
+
+2. **Document Role Purposes**
+   ```sql
+   -- Add comments to custom roles
+   ALTER ROLE DEMO_ROLE SET COMMENT = 'Demo and testing role - non-production only';
+   ALTER ROLE FINANCE_CI_ROLE SET COMMENT = 'Read-only role for CI/CD health checks via Cortex Code';
+   ```
+
+3. **Review ACCOUNTADMIN Access**
+   - Audit why user SAURABH120S requires ACCOUNTADMIN
+   - Consider creating specialized admin roles for day-to-day operations
+   - Implement MFA for ACCOUNTADMIN usage
+
+### Short-Term Actions (30 days)
+
+4. **Create Specialized Roles**
+   ```sql
+   -- Example: Create a data admin role for finance operations
+   CREATE ROLE FINANCE_DATA_ADMIN COMMENT = 'Finance data warehouse administrator';
+   GRANT ROLE FINANCE_DATA_ADMIN TO ROLE SYSADMIN;
+   
+   -- Grant necessary privileges
+   GRANT ALL ON DATABASE FINANCE_DEMO TO ROLE FINANCE_DATA_ADMIN;
+   GRANT USAGE ON WAREHOUSE FINANCE_DEMO_WH TO ROLE FINANCE_DATA_ADMIN;
+   ```
+
+5. **Implement Access Monitoring**
+   - Set up alerts on ACCOUNTADMIN usage
+   - Monitor grant changes via GRANTS_TO_ROLES/GRANTS_TO_USERS views
+   - Review access logs quarterly
+
+6. **Audit DEMO_ROLE Usage**
+   - Verify DEMO_ROLE is only used for non-production activities
+   - Consider restricting DEMO_DB to separate schema/database
+
+### Long-Term Actions (60-90 days)
+
+7. **Implement Role-Based Segregation**
+   - Create READ_ONLY roles for analysts
+   - Create WRITE roles for data engineers
+   - Create ADMIN roles for infrastructure management
+
+8. **Regular RBAC Audits**
+   - Schedule quarterly RBAC reviews
+   - Implement automated compliance checks
+   - Document role request and approval process
+
+9. **Enhance Security Posture**
+   - Enable MFA for all users
+   - Implement network policies
+   - Review authentication policies
+
+---
+
+## 10. Compliance Checklist
+
+- [ ] No excessive ACCOUNTADMIN usage
+- [ ] Production resources owned by SYSADMIN
+- [ ] All roles have documented purposes
+- [ ] Regular access reviews performed
+- [ ] Unused roles removed or disabled
+- [ ] MFA enabled for privileged accounts
+- [ ] Audit logging enabled and monitored
+- [ ] Least privilege principle enforced
+
+**Current Compliance Score: 4/8 (50%)**
+
+---
+
+## Appendix A: Query Used for Audit
+
 ```sql
--- 1. Create functional roles
-CREATE ROLE FINANCE_READER;
-CREATE ROLE FINANCE_WRITER;
-CREATE ROLE FINANCE_ADMIN;
+-- Role inventory
+SHOW ROLES;
 
--- 2. Build role hierarchy under SYSADMIN
-GRANT ROLE FINANCE_READER TO ROLE FINANCE_WRITER;
-GRANT ROLE FINANCE_WRITER TO ROLE FINANCE_ADMIN;
-GRANT ROLE FINANCE_ADMIN TO ROLE SYSADMIN;
+-- Role hierarchy
+SELECT 
+    grantee_name AS child_role,
+    name AS parent_role
+FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES
+WHERE granted_on = 'ROLE' AND deleted_on IS NULL;
 
--- 3. Grant appropriate privileges
-GRANT USAGE ON DATABASE FINANCE_DEMO TO ROLE FINANCE_READER;
-GRANT USAGE ON ALL SCHEMAS IN DATABASE FINANCE_DEMO TO ROLE FINANCE_READER;
-GRANT SELECT ON ALL TABLES IN SCHEMA FINANCE_DEMO.RAW TO ROLE FINANCE_READER;
-GRANT SELECT ON ALL TABLES IN SCHEMA FINANCE_DEMO.ANALYTICS TO ROLE FINANCE_READER;
+-- User assignments
+SELECT 
+    grantee_name AS user_name,
+    role AS role_name
+FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS
+WHERE deleted_on IS NULL;
 
-GRANT ALL ON SCHEMA FINANCE_DEMO.ANALYTICS TO ROLE FINANCE_WRITER;
-GRANT ALL ON SCHEMA FINANCE_DEMO.ML TO ROLE FINANCE_WRITER;
-
-GRANT USAGE ON WAREHOUSE FINANCE_DEMO_WH TO ROLE FINANCE_READER;
-
--- 4. Assign to user and change default
-GRANT ROLE FINANCE_ADMIN TO USER SAURABH120A;
-ALTER USER SAURABH120A SET DEFAULT_ROLE = 'FINANCE_ADMIN';
+-- Privilege grants
+SELECT 
+    grantee_name AS role_name,
+    privilege,
+    granted_on AS object_type,
+    name AS object_name
+FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_ROLES
+WHERE deleted_on IS NULL;
 ```
 
 ---
 
-#### C2: All Object Ownership Concentrated on ACCOUNTADMIN
+## Report Metadata
 
-**Description:** Every object in the account (FINANCE_DEMO database, all 4 schemas, all 3 tables, both user-created warehouses) is owned by `ACCOUNTADMIN`. No objects are owned by `SYSADMIN` or any functional role.
-
-**Risk:** This defeats the purpose of the Snowflake role hierarchy. `SYSADMIN` cannot manage any objects because it owns nothing. Object management requires `ACCOUNTADMIN`, forcing its routine use. If custom roles are later created, they cannot be granted ownership without first using `ACCOUNTADMIN`.
-
-**Evidence:**
-- FINANCE_DEMO database: owned by ACCOUNTADMIN
-- FINANCE_DEMO.RAW schema: owned by ACCOUNTADMIN
-- FINANCE_DEMO.ANALYTICS schema: owned by ACCOUNTADMIN
-- FINANCE_DEMO.ML schema: owned by ACCOUNTADMIN
-- All 3 tables (TRANSACTIONS, CUSTOMERS, COMPLIANCE_ALERTS): owned by ACCOUNTADMIN
-- COMPUTE_WH, FINANCE_DEMO_WH: owned by ACCOUNTADMIN
-
-**Remediation:**
-```sql
--- Transfer database and schema ownership to SYSADMIN
-GRANT OWNERSHIP ON DATABASE FINANCE_DEMO TO ROLE SYSADMIN COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON ALL SCHEMAS IN DATABASE FINANCE_DEMO TO ROLE SYSADMIN COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON ALL TABLES IN SCHEMA FINANCE_DEMO.RAW TO ROLE SYSADMIN COPY CURRENT GRANTS;
-
--- Transfer warehouse ownership
-GRANT OWNERSHIP ON WAREHOUSE FINANCE_DEMO_WH TO ROLE SYSADMIN COPY CURRENT GRANTS;
-GRANT OWNERSHIP ON WAREHOUSE COMPUTE_WH TO ROLE SYSADMIN COPY CURRENT GRANTS;
-```
+- **Total Roles Audited:** 248 (9 custom + 239 system)
+- **Total Users:** 2
+- **Total Grants Analyzed:** 1,302
+- **Critical Issues:** 2
+- **Medium Issues:** 2
+- **Low Issues:** 1
+- **Audit Duration:** Real-time analysis
+- **Next Audit Recommended:** December 10, 2026 (90 days)
 
 ---
 
-#### C3: Single ACCOUNTADMIN User (No Break-Glass Redundancy)
-
-**Description:** Only one user (`SAURABH120A`) has the `ACCOUNTADMIN` role. There is no second ACCOUNTADMIN user for emergency access.
-
-**Risk:** If this user's credentials are compromised, locked out, or the user leaves the organization, there is no administrative recovery path without contacting Snowflake Support. This is a single point of failure for the entire account.
-
-**Evidence:**
-- `SHOW GRANTS OF ROLE ACCOUNTADMIN` returns only 1 user assignment
-
-**Remediation:**
-```sql
--- Create a dedicated break-glass admin user
-CREATE USER FINANCE_BREAK_GLASS
-  PASSWORD = '<strong-random-password>'
-  DEFAULT_ROLE = 'PUBLIC'
-  MUST_CHANGE_PASSWORD = FALSE
-  COMMENT = 'Break-glass emergency admin - credentials stored in vault';
-
-GRANT ROLE ACCOUNTADMIN TO USER FINANCE_BREAK_GLASS;
-
--- Store credentials in a password vault (e.g., CyberArk, HashiCorp Vault)
--- Mandate MFA enrollment before first use
-```
-
----
-
-### HIGH Severity
-
-#### H1: No Custom Roles Exist (Zero Functional Role Design)
-
-**Description:** The account has only the 6 system-default roles. No custom functional roles have been created for data access, ETL operations, BI querying, or compliance review.
-
-**Risk:** Without custom roles, there is no way to implement least-privilege access. As users are added, they will either get ACCOUNTADMIN (full access) or PUBLIC (no access to FINANCE_DEMO). There is no middle ground for analysts, data engineers, or auditors.
-
-**Evidence:**
-- `SHOW ROLES` returns exactly 6 rows (all system defaults)
-- No roles matching project conventions (e.g., `FINANCE_READER`, `FINANCE_ETL`, `COMPLIANCE_REVIEWER`)
-
-**Remediation:**
-```sql
--- Recommended role hierarchy for this finance project:
-CREATE ROLE FINANCE_READER;      -- SELECT on RAW + ANALYTICS
-CREATE ROLE FINANCE_ETL;         -- INSERT/UPDATE on RAW, CREATE on ANALYTICS
-CREATE ROLE COMPLIANCE_REVIEWER; -- SELECT on COMPLIANCE_ALERTS + audit views
-CREATE ROLE FINANCE_ADMIN;       -- Full control under SYSADMIN
-
--- Wire into hierarchy
-GRANT ROLE FINANCE_READER TO ROLE FINANCE_ETL;
-GRANT ROLE FINANCE_READER TO ROLE COMPLIANCE_REVIEWER;
-GRANT ROLE FINANCE_ETL TO ROLE FINANCE_ADMIN;
-GRANT ROLE COMPLIANCE_REVIEWER TO ROLE FINANCE_ADMIN;
-GRANT ROLE FINANCE_ADMIN TO ROLE SYSADMIN;
-```
-
----
-
-#### H2: No Future Grants Configured
-
-**Description:** No future grants exist in the FINANCE_DEMO database or any of its schemas. When new tables, views, or other objects are created (e.g., by dbt), no roles will automatically receive access.
-
-**Risk:** Every new object created requires manual grant statements, or it becomes accessible only to the creating role (ACCOUNTADMIN). This creates operational friction and leads to either over-use of ACCOUNTADMIN or broken access for downstream consumers.
-
-**Evidence:**
-- `SHOW FUTURE GRANTS IN DATABASE FINANCE_DEMO` returns 0 rows
-- `SHOW FUTURE GRANTS IN SCHEMA FINANCE_DEMO.RAW` returns 0 rows
-
-**Remediation:**
-```sql
--- After creating custom roles, set up future grants:
-GRANT USAGE ON FUTURE SCHEMAS IN DATABASE FINANCE_DEMO TO ROLE FINANCE_READER;
-GRANT SELECT ON FUTURE TABLES IN SCHEMA FINANCE_DEMO.RAW TO ROLE FINANCE_READER;
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA FINANCE_DEMO.RAW TO ROLE FINANCE_READER;
-GRANT SELECT ON FUTURE TABLES IN SCHEMA FINANCE_DEMO.ANALYTICS TO ROLE FINANCE_READER;
-GRANT SELECT ON FUTURE VIEWS IN SCHEMA FINANCE_DEMO.ANALYTICS TO ROLE FINANCE_READER;
-
-GRANT ALL ON FUTURE TABLES IN SCHEMA FINANCE_DEMO.RAW TO ROLE FINANCE_ETL;
-GRANT ALL ON FUTURE TABLES IN SCHEMA FINANCE_DEMO.ANALYTICS TO ROLE FINANCE_ETL;
-```
-
----
-
-#### H3: No Resource Monitors Configured
-
-**Description:** No resource monitors exist in the account. All three warehouses can consume unlimited credits without alerting or automatic suspension.
-
-**Risk:** A runaway query, recursive procedure, or compromised session could consume unlimited compute credits with no guardrail. In a finance environment, this is both a cost risk and a potential indicator of data exfiltration attempts going undetected.
-
-**Evidence:**
-- `SHOW RESOURCE MONITORS` returns 0 rows
-- COMPUTE_WH auto_suspend = 300s (5 min, higher than typical)
-- No credit quotas on any warehouse
-
-**Remediation:**
-```sql
-CREATE RESOURCE MONITOR FINANCE_MONITOR
-  WITH CREDIT_QUOTA = 100
-  FREQUENCY = MONTHLY
-  START_TIMESTAMP = IMMEDIATELY
-  TRIGGERS
-    ON 75 PERCENT DO NOTIFY
-    ON 90 PERCENT DO NOTIFY
-    ON 100 PERCENT DO SUSPEND;
-
-ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = 'FINANCE_MONITOR';
-ALTER WAREHOUSE FINANCE_DEMO_WH SET RESOURCE_MONITOR = 'FINANCE_MONITOR';
-```
-
----
-
-#### H4: No Network Policies
-
-**Description:** No network policies are configured. The account accepts connections from any IP address.
-
-**Risk:** There is no IP allowlisting to restrict access to trusted networks. Combined with the single-user ACCOUNTADMIN setup, a credential compromise from any network location grants full account access.
-
-**Evidence:**
-- `SHOW NETWORK POLICIES` returns 0 rows
-
-**Remediation:**
-```sql
-CREATE NETWORK POLICY FINANCE_NETWORK_POLICY
-  ALLOWED_IP_LIST = ('<your-corporate-ip-range>')
-  BLOCKED_IP_LIST = ()
-  COMMENT = 'Restrict access to corporate network';
-
-ALTER ACCOUNT SET NETWORK_POLICY = 'FINANCE_NETWORK_POLICY';
-```
-
----
-
-### MEDIUM Severity
-
-#### M1: PUBLIC Role Has Broad Grants (106 Privileges)
-
-**Description:** The PUBLIC role has 106 grants including:
-- `USE AI FUNCTIONS` and `VIEW LINEAGE` at account level
-- USAGE on `SYSTEM_COMPUTE_POOL_CPU` and `SYSTEM_COMPUTE_POOL_GPU`
-- USAGE on `SYSTEM$STREAMLIT_NOTEBOOK_WH` warehouse
-- USAGE on `SNOWFLAKE_SAMPLE_DATA` database and all its schemas
-- SELECT on all tables across 6 schemas in SNOWFLAKE_SAMPLE_DATA (80+ tables)
-- 14 Snowflake database roles (CORTEX_USER, ML_USER, etc.)
-
-**Risk:** Most of these are Snowflake-provisioned defaults for sample data and are relatively low risk. However, the `USE AI FUNCTIONS` grant means any role can invoke AI/LLM functions which may incur costs. The `SYSTEM$STREAMLIT_NOTEBOOK_WH` USAGE grant gives all roles compute access.
-
-**Remediation:**
-```sql
--- Review and revoke AI function access from PUBLIC if cost control is needed
-REVOKE USE AI FUNCTIONS ON ACCOUNT FROM ROLE PUBLIC;
-
--- Revoke public warehouse access
-REVOKE USAGE ON WAREHOUSE SYSTEM$STREAMLIT_NOTEBOOK_WH FROM ROLE PUBLIC;
-
--- Revoke compute pool access
-REVOKE USAGE ON COMPUTE_POOL SYSTEM_COMPUTE_POOL_CPU FROM ROLE PUBLIC;
-REVOKE USAGE ON COMPUTE_POOL SYSTEM_COMPUTE_POOL_GPU FROM ROLE PUBLIC;
-```
-
----
-
-#### M2: ORGADMIN Granted to Primary User
-
-**Description:** `SAURABH120A` has both `ACCOUNTADMIN` and `ORGADMIN` roles. `ORGADMIN` can manage organizational settings and other accounts.
-
-**Risk:** If this user is compromised, the attacker gains not just account-level but organization-level control. `ORGADMIN` should be restricted to a separate, dedicated user.
-
-**Evidence:**
-- `SHOW GRANTS OF ROLE ORGADMIN` shows it granted to `SAURABH120A`
-
-**Remediation:**
-```sql
--- Create a dedicated org admin user (if organization management is needed)
--- Otherwise, revoke ORGADMIN from the daily-use account
-REVOKE ROLE ORGADMIN FROM USER SAURABH120A;
-```
-
----
-
-#### M3: No Authentication Policies Configured
-
-**Description:** No authentication policies exist in the account. There are no enforced password complexity requirements, session timeouts, or MFA mandates beyond user-level settings.
-
-**Risk:** While the current single user has MFA enabled, there is no policy to enforce MFA for future users. New users could be created without MFA, and no password rotation is enforced.
-
-**Evidence:**
-- `SHOW AUTHENTICATION POLICIES` returns 0 rows
-
-**Remediation:**
-```sql
-CREATE AUTHENTICATION POLICY FINANCE_AUTH_POLICY
-  MFA_AUTHENTICATION_METHODS = ('TOTP')
-  CLIENT_TYPES = ('SNOWFLAKE_UI', 'SNOWSQL', 'DRIVERS')
-  SECURITY_INTEGRATIONS = ()
-  COMMENT = 'Enforce MFA for all authentication';
-
-ALTER ACCOUNT SET AUTHENTICATION POLICY = FINANCE_AUTH_POLICY;
-```
-
----
-
-### LOW Severity
-
-#### L1: SYSADMIN Has No Object Grants (Bypassed in Hierarchy)
-
-**Description:** SYSADMIN has only account-level privileges (CREATE DATABASE, CREATE WAREHOUSE, CREATE COMPUTE POOL) but owns zero objects and has no grants on existing databases, schemas, or tables.
-
-**Risk:** The Snowflake-recommended hierarchy has SYSADMIN as the parent for all custom roles and the owner of databases/warehouses. Currently, SYSADMIN is non-functional. This is a design smell rather than a direct security risk.
-
-**Evidence:**
-- SYSADMIN grants: CREATE COMPUTE POOL, CREATE DATABASE, CREATE WAREHOUSE only
-- No database, schema, or table grants
-
-**Remediation:** Addressed by C2 (transferring ownership to SYSADMIN).
-
----
-
-#### L2: COMPUTE_WH Auto-Suspend Set to 5 Minutes
-
-**Description:** `COMPUTE_WH` has `auto_suspend = 300` seconds (5 minutes), while `FINANCE_DEMO_WH` is more appropriately set at 60 seconds.
-
-**Risk:** Minor cost inefficiency. The warehouse stays running for 5 minutes after the last query, consuming credits unnecessarily.
-
-**Remediation:**
-```sql
-ALTER WAREHOUSE COMPUTE_WH SET AUTO_SUSPEND = 60;
-```
-
----
-
-## FINANCE_DEMO Specific Analysis
-
-### Object Access Matrix
-
-| Object | ACCOUNTADMIN | SYSADMIN | PUBLIC | Custom Roles |
-|--------|-------------|----------|--------|--------------|
-| FINANCE_DEMO (DB) | OWNERSHIP | - | - | None exist |
-| RAW (Schema) | OWNERSHIP | - | - | None exist |
-| ANALYTICS (Schema) | OWNERSHIP | - | - | None exist |
-| ML (Schema) | OWNERSHIP | - | - | None exist |
-| TRANSACTIONS (Table) | OWNERSHIP | - | - | None exist |
-| CUSTOMERS (Table) | OWNERSHIP | - | - | None exist |
-| COMPLIANCE_ALERTS (Table) | OWNERSHIP | - | - | None exist |
-| FINANCE_DEMO_WH | OWNERSHIP | - | - | None exist |
-| COMPUTE_WH | OWNERSHIP | - | - | None exist |
-
-**Observation:** The FINANCE_DEMO environment is a completely flat access model. There is exactly one user with exactly one role that has total ownership of everything. No object has more than one grant (OWNERSHIP by ACCOUNTADMIN). This is the antithesis of least-privilege design.
-
----
-
-## Recommended Target RBAC Architecture
-
-```
-                    ACCOUNTADMIN
-                         |
-                      SYSADMIN
-                         |
-                   FINANCE_ADMIN
-                    /         \
-            FINANCE_ETL    COMPLIANCE_REVIEWER
-                 |              |
-            FINANCE_READER -----+
-```
-
-| Role | Purpose | Key Privileges |
-|------|---------|---------------|
-| FINANCE_READER | Analysts, BI tools | SELECT on RAW + ANALYTICS; USAGE on FINANCE_DEMO_WH |
-| FINANCE_ETL | dbt, data pipelines | INSERT/UPDATE/DELETE on RAW; CREATE TABLE/VIEW on ANALYTICS |
-| COMPLIANCE_REVIEWER | Audit and compliance | SELECT on COMPLIANCE_ALERTS; SELECT on audit views |
-| FINANCE_ADMIN | Team lead, admin tasks | OWNERSHIP on schemas; manages grants within FINANCE_DEMO |
-
----
-
-## Remediation Priority Matrix
-
-| Priority | Finding | Action | Effort |
-|----------|---------|--------|--------|
-| 1 | C1 | Change default role away from ACCOUNTADMIN | Low |
-| 2 | H1 | Create custom functional roles | Low |
-| 3 | C2 | Transfer object ownership to SYSADMIN | Low |
-| 4 | H2 | Configure future grants | Low |
-| 5 | C3 | Create break-glass admin user | Low |
-| 6 | H3 | Set up resource monitors | Low |
-| 7 | H4 | Configure network policies | Medium |
-| 8 | M3 | Create authentication policies | Medium |
-| 9 | M1 | Review and tighten PUBLIC role grants | Low |
-| 10 | M2 | Separate ORGADMIN from daily user | Low |
-| 11 | L1 | Addressed by item 3 | - |
-| 12 | L2 | Reduce COMPUTE_WH auto-suspend | Low |
-
----
-
-## Appendix: Raw Data Summary
-
-- **Total roles:** 6 (all system defaults)
-- **Total users:** 1
-- **Total databases:** 4 (1 user-created, 1 sample, 1 system, 1 personal)
-- **Total warehouses:** 3 (2 user-created, 1 system)
-- **FINANCE_DEMO schemas:** 4 (RAW, ANALYTICS, ML, PUBLIC)
-- **FINANCE_DEMO.RAW tables:** 3 (TRANSACTIONS, CUSTOMERS, COMPLIANCE_ALERTS)
-- **Future grants:** 0
-- **Resource monitors:** 0
-- **Network policies:** 0
-- **Authentication policies:** 0
-- **ACCOUNTADMIN queries (30 days):** 657 by SAURABH120A, 4 by FIRST_USER (system provisioning)
+**Report Status:** DRAFT - Requires review by Security Admin  
+**Approval Required By:** SECURITYADMIN or ACCOUNTADMIN
