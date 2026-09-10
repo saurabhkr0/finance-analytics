@@ -1,4 +1,4 @@
-name: Scheduled Health Check
+name: Finance Data Platform Health Check
 
 on:
   # Scheduled runs disabled — trigger manually for demos
