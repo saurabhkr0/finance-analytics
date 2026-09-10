@@ -1,4 +1,4 @@
-name: Finance Data Platform Health Check
+name: Scheduled Health Check
 
 on:
   # Scheduled runs disabled — trigger manually for demos
@@ -13,6 +13,14 @@ jobs:
   health-check:
     name: Run Platform Health Check
     runs-on: ubuntu-latest
+
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
+      ATLASSIAN_SITE_NAME: ${{ secrets.ATLASSIAN_SITE_NAME }}
+      ATLASSIAN_USER_EMAIL: ${{ secrets.ATLASSIAN_USER_EMAIL }}
+      ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_TEAM_ID: ${{ secrets.SLACK_TEAM_ID }}
 
     steps:
       - name: Checkout repository
@@ -62,7 +70,7 @@ jobs:
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-github"],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_PAT_TOKEN }}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
                 }
               },
               "jira": {
@@ -70,9 +78,9 @@ jobs:
                 "command": "npx",
                 "args": ["-y", "@aashari/mcp-server-atlassian-jira"],
                 "env": {
-                  "ATLASSIAN_SITE_NAME": "${{ secrets.ATLASSIAN_SITE_NAME }}",
-                  "ATLASSIAN_USER_EMAIL": "${{ secrets.ATLASSIAN_USER_EMAIL }}",
-                  "ATLASSIAN_API_TOKEN": "${{ secrets.ATLASSIAN_API_TOKEN }}"
+                  "ATLASSIAN_SITE_NAME": "${ATLASSIAN_SITE_NAME}",
+                  "ATLASSIAN_USER_EMAIL": "${ATLASSIAN_USER_EMAIL}",
+                  "ATLASSIAN_API_TOKEN": "${ATLASSIAN_API_TOKEN}"
                 }
               },
               "slack": {
@@ -80,8 +88,8 @@ jobs:
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-slack"],
                 "env": {
-                  "SLACK_BOT_TOKEN": "${{ secrets.SLACK_BOT_TOKEN }}",
-                  "SLACK_TEAM_ID": "${{ secrets.SLACK_TEAM_ID }}"
+                  "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
+                  "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
                 }
               }
             }
@@ -107,10 +115,12 @@ jobs:
           }
           PERMJSON
 
-      - name: Verify MCP servers
+      - name: Test MCP connections
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           cortex mcp list
+          echo "---"
+          cortex mcp start
 
       - name: Verify agent definitions
         run: |
@@ -172,7 +182,7 @@ jobs:
       - name: Route findings to GitHub, Jira, and Slack
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          cortex exec "Read all report files in the reports/ directory and route the findings to GitHub Issues, Jira tickets, and Slack based on severity. Follow the routing rules in your system prompt. Write a routing log to reports/issue_routing_log.md" \
+          cortex exec "Read all report files in the reports/ directory and route the findings to GitHub Issues, Jira tickets, and Slack based on severity. Use the MCP tools available to you. Follow the routing rules in your system prompt. Write a routing log to reports/issue_routing_log.md" \
             --agent issue-router \
             -c default \
             --bypass \
