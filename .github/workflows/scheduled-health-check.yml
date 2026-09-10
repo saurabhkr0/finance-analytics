@@ -2,8 +2,9 @@ name: Scheduled Health Check
 
 on:
   schedule:
+    # Scheduled runs disabled — trigger manually for demos
     # Every Monday at 6:00 AM AEST (Sunday 8:00 PM UTC)
-    - cron: '0 20 * * 0'
+    # - cron: '0 20 * * 0'
   workflow_dispatch:  # Manual trigger for testing
 
 jobs:
@@ -13,10 +14,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Node.js (for MCP servers)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
@@ -100,7 +101,7 @@ jobs:
 
       - name: Upload reports as artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: health-check-reports-${{ github.run_number }}
           path: reports/
